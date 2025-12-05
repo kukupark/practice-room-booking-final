@@ -1,0 +1,13 @@
+{
+  "reservations": [
+    {
+      "id": 1,
+      "room": "1",
+      "date": "2025-12-05",
+      "start": "20:01",
+      "end": "20:50",
+      "student": "박정원"
+    }
+  ],
+  "nextId": 2
+}

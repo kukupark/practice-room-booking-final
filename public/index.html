@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 이 줄을 새로 추가! -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>해냄 음악학원 연습실 예약</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+
+  <body>
+    <div class="page">
+      <header class="header">
+        <h1 class="header-title">해냄 음악학원 연습실 예약</h1>
+        <p class="header-sub">
+          수업 시간과 연습실 예약을 한눈에 보고, 학생 연습 시간을 더 효율적으로
+          관리해 보세요.
+        </p>
+      </header>
+
+      <main class="main">
+        <!-- 왼쪽: 날짜 선택 + 예약 목록 -->
+        <section class="card">
+          <h2>연습실 현황</h2>
+          <div class="date-row">
+            <label>
+              날짜 선택
+              <input type="date" id="dateInput" />
+            </label>
+            <button id="loadBtn" class="btn btn-primary">
+              해당 날짜 예약 보기
+            </button>
+          </div>
+
+          <div id="list" style="margin-top: 12px"></div>
+        </section>
+
+        <!-- 오른쪽: 새 예약 등록 -->
+        <section class="card">
+          <h2>새 예약 등록 (원장님용)</h2>
+          <form id="reserveForm" class="form-grid">
+            <div class="form-row">
+              <label for="roomSelect">연습실</label>
+              <select id="roomSelect">
+                <option value="1">연습실 1</option>
+                <option value="2">연습실 2</option>
+                <option value="3">연습실 3</option>
+                <option value="4">연습실 4</option>
+                <option value="5">연습실 5</option>
+              </select>
+            </div>
+
+            <div class="form-row">
+              <label for="reserveDate">날짜</label>
+              <input type="date" id="reserveDate" />
+            </div>
+
+            <div class="form-row">
+              <label for="startTime">시작 시간</label>
+              <input type="time" id="startTime" />
+            </div>
+
+            <div class="form-row">
+              <label for="endTime">끝 시간</label>
+              <input type="time" id="endTime" />
+            </div>
+
+            <div class="form-row">
+              <label for="studentName">학생 이름</label>
+              <input type="text" id="studentName" placeholder="예) 김해냄" />
+            </div>
+
+            <button type="submit" class="btn btn-primary">예약하기</button>
+          </form>
+
+          <p id="message"></p>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
