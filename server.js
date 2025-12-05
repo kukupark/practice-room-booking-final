@@ -2,9 +2,34 @@
 
 const express = require('express');
 const path = require('path');
-const fs = require('fs');
+const { Pool } = require('pg');
 
 const app = express();
+
+// ------------------------------
+//  PostgreSQL 연결 설정
+// ------------------------------
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  ssl: process.env.DATABASE_URL
+    ? { rejectUnauthorized: false } // Render 같은 클라우드 환경용
+    : false, // 로컬(내 컴퓨터)에서 테스트할 땐 ssl 안 써도 됨
+});
+
+// 서버 시작 시 테이블이 없으면 만드는 함수
+async function initDb() {
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS reservations (
+      id SERIAL PRIMARY KEY,
+      room TEXT NOT NULL,
+      date TEXT NOT NULL,   -- 'YYYY-MM-DD'
+      start TEXT NOT NULL,  -- 'HH:MM'
+      "end" TEXT NOT NULL,  -- 'HH:MM' (end는 예약어라서 쌍따옴표)
+      student TEXT NOT NULL
+    );
+  `);
+  console.log('DB 초기화 완료 (reservations 테이블 준비됨)');
+}
 
 // JSON 형식(body) 읽기
 app.use(express.json());
@@ -13,90 +38,37 @@ app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // ------------------------------
-//  파일에 저장해서 예약 유지하기
-// ------------------------------
-const DATA_FILE = path.join(__dirname, 'reservations.json');
-
-let reservations = []; // {id, room, date, start, end, student}
-let nextId = 1;
-
-// 서버 시작할 때 파일에서 예약 불러오기
-function loadReservations() {
-  try {
-    if (fs.existsSync(DATA_FILE)) {
-      const raw = fs.readFileSync(DATA_FILE, 'utf8');
-      if (raw.trim().length > 0) {
-        const parsed = JSON.parse(raw);
-
-        // { reservations: [...], nextId: 3 } 형식으로 저장할 예정
-        if (Array.isArray(parsed.reservations)) {
-          reservations = parsed.reservations;
-        } else if (Array.isArray(parsed)) {
-          // 혹시 옛날 형식으로 저장돼 있으면
-          reservations = parsed;
-        }
-
-        if (typeof parsed.nextId === 'number') {
-          nextId = parsed.nextId;
-        } else {
-          // id 최대값 + 1 로 추정
-          nextId =
-            reservations.reduce((max, r) => Math.max(max, r.id || 0), 0) + 1;
-        }
-      }
-    } else {
-      // 파일이 없으면 처음 시작하는 것 → 그냥 빈 배열
-      reservations = [];
-      nextId = 1;
-    }
-    console.log(
-      `예약 ${reservations.length}개 로드됨 (다음 id: ${nextId})`
-    );
-  } catch (err) {
-    console.error('예약 파일 읽는 중 오류:', err);
-    reservations = [];
-    nextId = 1;
-  }
-}
-
-// 예약을 파일에 저장하기
-function saveReservations() {
-  const dataToSave = {
-    reservations,
-    nextId,
-  };
-  try {
-    fs.writeFileSync(DATA_FILE, JSON.stringify(dataToSave, null, 2), 'utf8');
-    console.log('예약 데이터 저장 완료');
-  } catch (err) {
-    console.error('예약 파일 저장 중 오류:', err);
-  }
-}
-
-// 서버 시작 시 한 번 불러오기
-loadReservations();
-
-// ------------------------------
-//  API 라우트
+//  API 라우트 (DB 사용)
 // ------------------------------
 
 // 날짜별 예약 목록 가져오기
-// 예: GET /api/reservations?date=2025-12-04
-app.get('/api/reservations', (req, res) => {
+// 예: GET /api/reservations?date=2025-12-05
+app.get('/api/reservations', async (req, res) => {
   const date = req.query.date;
   if (!date) {
     return res
       .status(400)
-      .json({ error: 'date 파라미터가 필요합니다. (예: ?date=2025-12-04)' });
+      .json({ error: 'date 파라미터가 필요합니다. (예: ?date=2025-12-05)' });
   }
 
-  const list = reservations.filter((r) => r.date === date);
-  res.json(list);
+  try {
+    const result = await pool.query(
+      `SELECT id, room, date, start, "end", student
+       FROM reservations
+       WHERE date = $1
+       ORDER BY room, start`,
+      [date]
+    );
+    res.json(result.rows);
+  } catch (err) {
+    console.error('예약 목록 조회 중 오류:', err);
+    res.status(500).json({ error: '예약 목록을 불러오는 중 오류가 발생했습니다.' });
+  }
 });
 
 // 새 예약 추가
 // body: { room, date, start, end, student }
-app.post('/api/reservations', (req, res) => {
+app.post('/api/reservations', async (req, res) => {
   const { room, date, start, end, student } = req.body;
 
   if (!room || !date || !start || !end || !student) {
@@ -106,37 +78,56 @@ app.post('/api/reservations', (req, res) => {
     });
   }
 
-  // 같은 연습실, 같은 날짜에서 시간 겹치는지 체크
-  const conflict = reservations.some((r) => {
-    if (r.room !== room || r.date !== date) return false;
-    // 겹치지 않는 경우: 기존.end <= 새.start  또는  기존.start >= 새.end
-    return !(r.end <= start || r.start >= end);
-  });
+  try {
+    // 같은 연습실, 같은 날짜에서 시간 겹치는지 체크
+    const conflictResult = await pool.query(
+      `
+      SELECT 1
+      FROM reservations
+      WHERE room = $1
+        AND date = $2
+        AND NOT ("end" <= $3 OR start >= $4)
+      LIMIT 1
+      `,
+      [room, date, start, end]
+    );
 
-  if (conflict) {
-    return res.status(400).json({ error: '이미 예약이 있는 시간입니다.' });
+    if (conflictResult.rowCount > 0) {
+      return res.status(400).json({ error: '이미 예약이 있는 시간입니다.' });
+    }
+
+    // 예약 저장
+    const insertResult = await pool.query(
+      `
+      INSERT INTO reservations (room, date, start, "end", student)
+      VALUES ($1, $2, $3, $4, $5)
+      RETURNING id, room, date, start, "end", student
+      `,
+      [room, date, start, end, student]
+    );
+
+    const newRes = insertResult.rows[0];
+    res.json(newRes);
+  } catch (err) {
+    console.error('예약 저장 중 오류:', err);
+    res
+      .status(500)
+      .json({ error: '예약을 저장하는 중 오류가 발생했습니다.' });
   }
-
-  const newRes = {
-    id: nextId++,
-    room,
-    date,
-    start,
-    end,
-    student,
-  };
-
-  reservations.push(newRes);
-  // 👉 새 예약 추가할 때마다 파일로 저장
-  saveReservations();
-
-  res.json(newRes);
 });
 
 // ------------------------------
 // 서버 실행
 // ------------------------------
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`서버 실행 중: 포트 ${PORT}에서 서버 실행 중`);
-});
+
+initDb()
+  .then(() => {
+    app.listen(PORT, () => {
+      console.log(`서버 실행 중: 포트 ${PORT}에서 서버 실행 중`);
+    });
+  })
+  .catch((err) => {
+    console.error('DB 초기화 중 치명적 오류:', err);
+    process.exit(1);
+  });
