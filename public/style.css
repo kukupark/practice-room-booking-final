@@ -204,3 +204,87 @@ select {
     padding: 8px 10px;
   }
 }
+/* === 시간표 스타일 === */
+
+.timetable-title {
+  margin: 10px 0 4px;
+  font-size: 14px;
+}
+
+.timetable-help {
+  margin: 2px 0 6px;
+  font-size: 11px;
+  color: #777;
+}
+
+.timetable {
+  margin-top: 4px;
+  border-radius: 12px;
+  background: #f5f7fb;
+  padding: 6px;
+  overflow-x: auto;
+}
+
+/* grid: [시간] [연습실1] [연습실2] ... */
+.timetable-table {
+  display: grid;
+  grid-template-columns: 64px repeat(5, minmax(80px, 1fr));
+  font-size: 11px;
+}
+
+.tt-header {
+  font-weight: 600;
+  text-align: center;
+  padding: 6px 4px;
+  border-bottom: 1px solid #dde3f0;
+}
+
+.tt-corner {
+  background: #e3f2fd;
+  border-right: 1px solid #dde3f0;
+}
+
+.tt-time {
+  font-size: 11px;
+  padding: 6px 4px;
+  border-right: 1px solid #dde3f0;
+  border-bottom: 1px solid #dde3f0;
+  background: #eef2fb;
+}
+
+.tt-cell {
+  min-height: 32px;
+  padding: 4px;
+  border-bottom: 1px solid #dde3f0;
+  border-right: 1px solid #dde3f0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+}
+
+/* 비어있는 칸 */
+.tt-free {
+  background: #ffffff;
+  color: #90a4ae;
+  cursor: pointer;
+}
+
+.tt-free:hover {
+  background: #e3f2fd;
+}
+
+/* 예약 차 있는 칸 */
+.tt-busy {
+  background: #ffebee;
+  color: #c62828;
+}
+
+.tt-student {
+  font-weight: 600;
+}
+
+.tt-range {
+  font-size: 10px;
+}
