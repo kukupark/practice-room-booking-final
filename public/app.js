@@ -53,15 +53,23 @@ window.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().slice(0, 10);
   dateInput.value = today;
 
+  // 처음 페이지 열렸을 때 오늘 날짜 기준으로 로딩
   loadReservations();
 
+  // 버튼 눌러서 수동으로 새로고침도 가능
   loadBtn.addEventListener('click', (e) => {
     e.preventDefault();
     loadReservations();
   });
 
+  // ✅ 날짜를 바꾸면 자동으로 해당 날짜 시간표 로딩
+  dateInput.addEventListener('change', () => {
+    loadReservations();
+  });
+
   form.addEventListener('submit', submitReservation);
 });
+
 
 // 예약 데이터 불러오기
 async function loadReservations() {
