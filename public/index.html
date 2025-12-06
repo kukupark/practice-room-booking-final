@@ -17,14 +17,24 @@
 
       <main class="main">
         <section class="card">
-          <h2>연습실 예약</h2>
-
+          <!-- 1. 날짜 -->
           <div class="date-row">
             <label>
               날짜
               <input type="date" id="date" />
             </label>
           </div>
+
+          <!-- 2. 시간표 -->
+          <div class="timetable-title">연습실 시간표</div>
+          <p class="timetable-help">
+            원하는 시간 칸을 누르면 시간이 자동으로 입력됩니다. 검은 칸은
+            수업으로 예약이 불가한 시간입니다.
+          </p>
+          <div id="timetable" class="timetable"></div>
+
+          <!-- 3. 연습실 예약 폼 -->
+          <h2>연습실 예약</h2>
 
           <form id="reserveForm">
             <div class="form-grid">
@@ -65,14 +75,6 @@
           </form>
 
           <div id="message"></div>
-
-          <div class="timetable-title">연습실 시간표</div>
-          <p class="timetable-help">
-            원하는 시간 칸을 누르면 시간이 자동으로 입력됩니다. 검은 칸은
-            수업으로 예약이 불가한 시간입니다.
-          </p>
-
-          <div id="timetable" class="timetable"></div>
         </section>
       </main>
     </div>
