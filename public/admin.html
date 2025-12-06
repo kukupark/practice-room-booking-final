@@ -28,12 +28,12 @@
           <!-- 시간표 -->
           <div class="timetable-title">연습실 시간표 (관리자)</div>
           <p class="timetable-help">
-            검은 칸은 수업, 파란 칸은 예약입니다.<br />
+            검은 칸은 수업, 빨간 칸은 예약입니다.<br />
             예약된 칸을 클릭하면 관리자 코드로 해당 예약을 취소할 수 있습니다.
           </p>
 
-          <div class="timetable-wrapper">
-            <table id="admin-timetable" class="timetable"></table>
+          <div class="timetable">
+            <div class="timetable-table" id="admin-timetable"></div>
           </div>
 
           <div id="admin-message"></div>
@@ -41,7 +41,6 @@
       </main>
     </div>
 
-    <!-- 관리자 전용 스크립트 -->
     <script src="/admin.js"></script>
   </body>
 </html>
