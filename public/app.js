@@ -1,7 +1,6 @@
 // public/app.js
 
 const dateInput = document.getElementById('date');
-const loadBtn = document.getElementById('loadBtn');
 const roomSelect = document.getElementById('room');
 const startInput = document.getElementById('start');
 const endInput = document.getElementById('end');
@@ -17,7 +16,7 @@ const ROOMS = [1, 2, 3, 4, 5];
 const TIME_SLOTS = generateTimeSlots('13:00', '22:00', 60);
 
 let currentReservations = [];
-let selectedCell = null; // ✅ 현재 선택된 칸 기억
+let selectedCell = null; // 현재 선택된 칸
 
 // 시간 문자열 배열 만들기
 function generateTimeSlots(start, end, stepMinutes) {
@@ -54,14 +53,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().slice(0, 10);
   dateInput.value = today;
 
-  // 처음 로딩
+  // 처음 로딩 시 오늘 날짜 기준 시간표
   loadReservations();
-
-  // 버튼으로 수동 새로고침
-  loadBtn.addEventListener('click', (e) => {
-    e.preventDefault();
-    loadReservations();
-  });
 
   // ✅ 날짜를 바꾸면 자동으로 해당 날짜 시간표 로딩
   dateInput.addEventListener('change', () => {
@@ -105,7 +98,7 @@ async function loadReservations() {
 // 시간표 그리기
 function renderTimetable() {
   timetableEl.innerHTML = '';
-  selectedCell = null; // ✅ 새로 그릴 때 선택 초기화
+  selectedCell = null; // 새로 그릴 때 선택 초기화
 
   const table = document.createElement('div');
   table.className = 'timetable-table';
@@ -155,7 +148,7 @@ function renderTimetable() {
 
         // 이 칸 클릭 시: 취소 or 폼 채우기
         cell.addEventListener('click', () => {
-          // ✅ 선택된 칸이 있었으면 파란 표시 제거
+          // 선택된 칸 파란 표시 제거
           if (selectedCell) {
             selectedCell.classList.remove('tt-selected');
             selectedCell = null;
@@ -197,7 +190,7 @@ function renderTimetable() {
 
           studentInput.focus();
 
-          // ✅ 이전 선택 제거 & 현재 칸 파란색으로 표시
+          // 이전 선택 제거 & 현재 칸 파란색으로 표시
           if (selectedCell) {
             selectedCell.classList.remove('tt-selected');
           }
