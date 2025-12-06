@@ -232,6 +232,12 @@ body {
   box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
 }
 
+/* 수업(예약 불가) 칸 – 검은 칸 */
+.tt-block {
+  background: #111827;
+  color: #f9fafb;
+}
+
 /* ===== 반응형(핸드폰) ===== */
 @media (max-width: 640px) {
   .header-title {
