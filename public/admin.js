@@ -3,11 +3,11 @@
 // 페이지 들어올 때 한 번만 관리자 코드 입력
 let adminCode = null;
 
-// 예약 페이지와 동일한 시간대 / 연습실 범위
+// 시간 / 연습실 범위 (학생 페이지와 동일)
 const HOURS = [9,10,11,12,13,14,15,16,17,18,19,20,21];
 const ROOMS = [1,2,3,4,5];
 
-// 서버에서 받아온 수업 칸 목록 (room, hour)
+// 서버에서 받은 수업 칸 (room, hour)
 let classSlots = [];
 
 // 오늘 날짜 (YYYY-MM-DD)
@@ -26,32 +26,29 @@ function isClassSlotLocal(room, hour) {
   );
 }
 
-// 관리자용 시간표 렌더링
+// 관리자용 시간표 그리드 렌더링
 function renderAdminTimetable(date, reservations) {
-  const table = document.getElementById('admin-timetable');
-  if (!table) return;
-  table.innerHTML = '';
+  const grid = document.getElementById('admin-timetable');
+  if (!grid) return;
 
-  // ----- 헤더 -----
-  const thead = document.createElement('thead');
-  const headRow = document.createElement('tr');
+  grid.innerHTML = '';
 
-  const timeTh = document.createElement('th');
-  timeTh.textContent = '시간';
-  headRow.appendChild(timeTh);
+  // --- 헤더 행 ---
+  // 왼쪽 코너: "시간"
+  const corner = document.createElement('div');
+  corner.className = 'tt-header tt-corner';
+  corner.textContent = '시간';
+  grid.appendChild(corner);
 
+  // 연습실 1~5
   ROOMS.forEach((room) => {
-    const th = document.createElement('th');
-    th.textContent = `연습실 ${room}`;
-    headRow.appendChild(th);
+    const h = document.createElement('div');
+    h.className = 'tt-header';
+    h.textContent = `연습실 ${room}`;
+    grid.appendChild(h);
   });
 
-  thead.appendChild(headRow);
-  table.appendChild(thead);
-
-  const tbody = document.createElement('tbody');
-
-  // (room-hour) → 예약 데이터 매핑
+  // --- (room-hour) → 예약 매핑 ---
   const slotMap = {};
 
   (reservations || []).forEach((item) => {
@@ -64,7 +61,7 @@ function renderAdminTimetable(date, reservations) {
     if (!rawStart || !rawEnd) return;
 
     const startHour = parseInt(String(rawStart).slice(0, 2), 10);
-    const endHour = parseInt(String(rawEnd).slice(0, 2), 10);
+    const endHour   = parseInt(String(rawEnd).slice(0, 2), 10);
 
     for (let h = startHour; h < endHour; h++) {
       const key = `${room}-${h}`;
@@ -72,33 +69,32 @@ function renderAdminTimetable(date, reservations) {
     }
   });
 
-  // ----- 시간별 행 생성 -----
+  // --- 시간별 행 생성 ---
   HOURS.forEach((hour) => {
-    const tr = document.createElement('tr');
+    // 왼쪽 시간 칸
+    const timeDiv = document.createElement('div');
+    timeDiv.className = 'tt-time';
+    timeDiv.textContent = `${String(hour).padStart(2, '0')}:00`;
+    grid.appendChild(timeDiv);
 
-    // 왼쪽 시간 표시
-    const timeTd = document.createElement('td');
-    timeTd.className = 'time-cell';
-    timeTd.textContent = `${String(hour).padStart(2, '0')}:00`;
-    tr.appendChild(timeTd);
-
+    // 연습실 칸들
     ROOMS.forEach((room) => {
-      const td = document.createElement('td');
-      td.className = 'slot-cell';
+      const cell = document.createElement('div');
+      cell.className = 'tt-cell';
 
       const key = `${room}-${hour}`;
       const item = slotMap[key];
       const isClass = isClassSlotLocal(room, hour);
 
       if (isClass) {
-        // === 수업 칸 (검은색) ===
-        td.classList.add('slot-class');
+        // ── 수업 칸 (검은색) ──
+        cell.classList.add('tt-block');
 
         if (item) {
-          // 수업시간 + 예약까지 있는 경우 → 예약정보 표시 + 클릭시 취소 가능
-          const rawName = item.student || '';
-          const rawStart = item.start || '';
-          const rawEnd = item.end || item['end'] || '';
+          // 수업시간 + 예약까지 있는 경우 → 예약정보 표시 + 클릭시 취소
+          const rawName  = item.student || '';
+          const rawStart = item.start  || '';
+          const rawEnd   = item.end    || item['end'] || '';
 
           const startText =
             typeof rawStart === 'string' ? rawStart.slice(0, 5) : '';
@@ -107,25 +103,35 @@ function renderAdminTimetable(date, reservations) {
           const name =
             typeof rawName === 'string' ? rawName : '';
 
-          td.innerHTML = `
-            <div class="slot-main">${name || '예약됨'}</div>
-            <div class="slot-sub">${startText} ~ ${endText}</div>
-          `;
-          td.dataset.id = item.id;
-          td.dataset.name = name || '예약';
-          td.dataset.time = timeTd.textContent;
-          td.addEventListener('click', onSlotClick);
+          const nameDiv = document.createElement('div');
+          nameDiv.className = 'tt-student';
+          nameDiv.textContent = name || '예약됨';
+
+          const rangeDiv = document.createElement('div');
+          rangeDiv.className = 'tt-range';
+          rangeDiv.textContent = `${startText} ~ ${endText}`;
+
+          cell.appendChild(nameDiv);
+          cell.appendChild(rangeDiv);
+
+          cell.dataset.id = item.id;
+          cell.dataset.name = name || '예약';
+          cell.dataset.time = timeDiv.textContent;
+          cell.addEventListener('click', onSlotClick);
         } else {
-          // 순수 수업 칸 → "수업" 표시, 클릭해도 아무 일 없음
-          td.innerHTML = `<div class="slot-main">수업</div>`;
+          // 순수 수업 칸
+          const labelDiv = document.createElement('div');
+          labelDiv.className = 'tt-student';
+          labelDiv.textContent = '수업';
+          cell.appendChild(labelDiv);
         }
       } else if (item) {
-        // === 일반 예약 칸 (파란색) ===
-        td.classList.add('slot-reserved');
+        // ── 일반 예약 칸 (빨간색) ──
+        cell.classList.add('tt-busy');
 
-        const rawName = item.student || '';
-        const rawStart = item.start || '';
-        const rawEnd = item.end || item['end'] || '';
+        const rawName  = item.student || '';
+        const rawStart = item.start  || '';
+        const rawEnd   = item.end    || item['end'] || '';
 
         const startText =
           typeof rawStart === 'string' ? rawStart.slice(0, 5) : '';
@@ -134,30 +140,33 @@ function renderAdminTimetable(date, reservations) {
         const name =
           typeof rawName === 'string' ? rawName : '';
 
-        td.innerHTML = `
-          <div class="slot-main">${name || '예약됨'}</div>
-          <div class="slot-sub">${startText} ~ ${endText}</div>
-        `;
-        td.dataset.id = item.id;
-        td.dataset.name = name || '예약';
-        td.dataset.time = timeTd.textContent;
-        td.addEventListener('click', onSlotClick);
+        const nameDiv = document.createElement('div');
+        nameDiv.className = 'tt-student';
+        nameDiv.textContent = name || '예약됨';
+
+        const rangeDiv = document.createElement('div');
+        rangeDiv.className = 'tt-range';
+        rangeDiv.textContent = `${startText} ~ ${endText}`;
+
+        cell.appendChild(nameDiv);
+        cell.appendChild(rangeDiv);
+
+        cell.dataset.id = item.id;
+        cell.dataset.name = name || '예약';
+        cell.dataset.time = timeDiv.textContent;
+        cell.addEventListener('click', onSlotClick);
       } else {
-        // === 빈 칸 ===
-        td.classList.add('slot-empty');
-        td.textContent = '';
+        // ── 빈 칸 ──
+        cell.classList.add('tt-free');
+        // 텍스트는 비워둠 (원하면 '비어있음' 같은 표시 가능)
       }
 
-      tr.appendChild(td);
+      grid.appendChild(cell);
     });
-
-    tbody.appendChild(tr);
   });
-
-  table.appendChild(tbody);
 }
 
-// 날짜별 예약 + 수업칸 함께 불러오기
+// 날짜별 예약 + 수업블록 함께 불러오기
 async function loadAdminDay() {
   const dateInput = document.getElementById('admin-date');
   const date = dateInput.value;
@@ -178,13 +187,13 @@ async function loadAdminDay() {
 
     try {
       reservations = await resRes.json();
-    } catch (e) {
+    } catch {
       reservations = [];
     }
 
     try {
       blocks = await blocksRes.json();
-    } catch (e) {
+    } catch {
       blocks = [];
     }
 
@@ -205,12 +214,12 @@ async function loadAdminDay() {
     (blocks || []).forEach((b) => {
       const room = b.room;
       const start = b.start || '';
-      const end = b.end || '';
+      const end   = b.end   || '';
 
       if (!room || !start || !end) return;
 
       const startHour = parseInt(String(start).slice(0, 2), 10);
-      const endHour = parseInt(String(end).slice(0, 2), 10);
+      const endHour   = parseInt(String(end).slice(0, 2), 10);
 
       for (let h = startHour; h < endHour; h++) {
         classSlots.push({ room, hour: h });
@@ -230,14 +239,14 @@ async function loadAdminDay() {
   }
 }
 
-// 칸 클릭 → 강제 취소
+// 칸 클릭 → 예약 강제 취소
 async function onSlotClick(event) {
   const msg = document.getElementById('admin-message');
-  const td = event.currentTarget;
+  const cell = event.currentTarget;
 
-  const id = td.dataset.id;
-  const name = td.dataset.name;
-  const timeLabel = td.dataset.time;
+  const id = cell.dataset.id;
+  const name = cell.dataset.name;
+  const timeLabel = cell.dataset.time;
 
   if (!id) return;
 
@@ -271,7 +280,7 @@ async function onSlotClick(event) {
   }
 }
 
-// 초기화: 관리자 코드 입력 + 오늘 날짜 설정 + 첫 로딩
+// 초기화
 window.addEventListener('DOMContentLoaded', () => {
   adminCode = prompt('관리자 코드를 입력하세요:');
   if (!adminCode) {
@@ -279,8 +288,6 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const dateInput = document.getElementById('admin-date');
-  if (!dateInput) return;
-
   dateInput.value = getToday();
   dateInput.addEventListener('change', loadAdminDay);
 
