@@ -190,13 +190,14 @@ body {
 }
 
 /* ===== 메시지 ===== */
-#message {
+#message,
+#admin-message {
   margin-top: 12px;
   font-size: 0.85rem;
   color: #374151;
 }
 
-/* ===== 시간표 영역 ===== */
+/* ===== 시간표 영역 (학생/관리자 공통) ===== */
 .timetable-title {
   margin: 4px 0 4px;
   font-size: 0.95rem;
@@ -210,6 +211,7 @@ body {
   color: #6b7280;
 }
 
+/* 시간표 바깥 박스 */
 .timetable {
   margin-top: 4px;
   border-radius: 14px;
@@ -329,73 +331,3 @@ body {
     font-size: 0.7rem;
   }
 }
-/* 관리자 시간표 스타일 */
-.admin-timetable-wrapper {
-  margin-top: 8px;
-  overflow-x: auto;
-}
-
-.admin-timetable {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.85rem;
-}
-
-.admin-timetable th,
-.admin-timetable td {
-  border: 1px solid #e5e7eb;
-  text-align: center;
-  padding: 6px 4px;
-}
-
-.admin-timetable th {
-  background: #f9fafb;
-  font-weight: 600;
-}
-
-.admin-timetable .time-cell {
-  background: #f3f4f6;
-  font-weight: 500;
-  width: 70px;
-  white-space: nowrap;
-}
-
-/* 관리자/예약 페이지 공통 시간표 슬롯 스타일 */
-
-.slot-cell {
-  min-width: 80px;
-  cursor: pointer;
-}
-
-.slot-empty {
-  background: #ffffff;
-}
-
-.slot-reserved {
-  background: #bfdbfe; /* 예약: 연한 파란색 */
-}
-
-.slot-reserved:hover {
-  background: #93c5fd;
-}
-
-/* 수업 칸: 검은색 (예약페이지랑 동일한 느낌으로) */
-.slot-class {
-  background: #111827;
-  color: #f9fafb;
-  cursor: default;
-}
-
-.slot-class:hover {
-  background: #111827;
-}
-
-.slot-main {
-  font-weight: 600;
-}
-
-.slot-sub {
-  font-size: 0.75rem;
-  color: #374151;
-}
-
