@@ -117,7 +117,6 @@ app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
-// 관리자: 특정 날짜 예약 전체 조회
 app.get('/api/admin/reservations', async (req, res) => {
   const { date } = req.query;
   if (!date) {
@@ -126,7 +125,13 @@ app.get('/api/admin/reservations', async (req, res) => {
 
   try {
     const result = await pool.query(
-      `SELECT id, room, student_name, start_time, end_time, manage_code
+      `SELECT 
+         id,
+         room,
+         student      AS student_name,
+         start_time,
+         end_time,
+         manage_code
        FROM reservations
        WHERE date = $1
        ORDER BY start_time, room`,
@@ -138,6 +143,7 @@ app.get('/api/admin/reservations', async (req, res) => {
     res.status(500).json({ error: '예약 조회 중 오류가 발생했습니다.' });
   }
 });
+
 
 // 관리자: 관리코드 없이 강제 취소
 app.delete('/api/admin/reservations/:id', async (req, res) => {
