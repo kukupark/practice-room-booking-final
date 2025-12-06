@@ -16,9 +16,10 @@ const ROOMS = [1, 2, 3, 4, 5];
 const TIME_SLOTS = generateTimeSlots('13:00', '22:00', 60);
 
 let currentReservations = [];
+let currentBlocks = []; // ✅ 수업(검은 칸) 블록
 let selectedCell = null; // 현재 선택된 칸
 
-// 시간 문자열 배열 만들기
+// 시간 문자열 배열 만들기: "HH:MM" → stepMinutes 단위로 증가
 function generateTimeSlots(start, end, stepMinutes) {
   const slots = [];
   let [h, m] = start.split(':').map(Number);
@@ -54,38 +55,50 @@ window.addEventListener('DOMContentLoaded', () => {
   dateInput.value = today;
 
   // 처음 로딩 시 오늘 날짜 기준 시간표
-  loadReservations();
+  loadReservationsAndBlocks();
 
-  // ✅ 날짜를 바꾸면 자동으로 해당 날짜 시간표 로딩
+  // 날짜를 바꾸면 자동으로 해당 날짜 시간표 로딩
   dateInput.addEventListener('change', () => {
-    loadReservations();
+    loadReservationsAndBlocks();
   });
 
   form.addEventListener('submit', submitReservation);
 });
 
-// 예약 데이터 불러오기
-async function loadReservations() {
+// 예약 + 수업 블록 모두 불러오기
+async function loadReservationsAndBlocks() {
   const date = dateInput.value;
   if (!date) return;
 
   messageEl.textContent = '';
 
   try {
-    const res = await fetch(
-      `/api/reservations?date=${encodeURIComponent(date)}`
-    );
+    const [resRes, blocksRes] = await Promise.all([
+      fetch(`/api/reservations?date=${encodeURIComponent(date)}`),
+      fetch(`/api/blocks?date=${encodeURIComponent(date)}`),
+    ]);
 
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
+    if (!resRes.ok) {
+      const err = await resRes.json().catch(() => ({}));
       messageEl.textContent =
         err.error || '예약 목록을 불러오는 중 오류가 발생했습니다.';
       messageEl.style.color = 'red';
       return;
     }
 
-    const data = await res.json();
-    currentReservations = data;
+    if (!blocksRes.ok) {
+      const err = await blocksRes.json().catch(() => ({}));
+      messageEl.textContent =
+        err.error || '수업 시간표를 불러오는 중 오류가 발생했습니다.';
+      messageEl.style.color = 'red';
+      return;
+    }
+
+    const reservations = await resRes.json();
+    const blocks = await blocksRes.json();
+
+    currentReservations = reservations;
+    currentBlocks = blocks;
 
     renderTimetable();
   } catch (err) {
@@ -98,7 +111,7 @@ async function loadReservations() {
 // 시간표 그리기
 function renderTimetable() {
   timetableEl.innerHTML = '';
-  selectedCell = null; // 새로 그릴 때 선택 초기화
+  selectedCell = null;
 
   const table = document.createElement('div');
   table.className = 'timetable-table';
@@ -109,7 +122,7 @@ function renderTimetable() {
   corner.textContent = '시간';
   table.appendChild(corner);
 
-  // 상단 헤더: 연습실들
+  // 상단 헤더: 연습실
   ROOMS.forEach((room) => {
     const h = document.createElement('div');
     h.className = 'tt-header';
@@ -119,17 +132,34 @@ function renderTimetable() {
 
   // 각 시간줄
   TIME_SLOTS.forEach((time, idx) => {
-    // 시간 표시 셀
+    // 왼쪽 시간 칸
     const timeCell = document.createElement('div');
     timeCell.className = 'tt-time';
     timeCell.textContent = time;
     table.appendChild(timeCell);
 
-    // 각 연습실 셀
+    // 각 연습실 칸
     ROOMS.forEach((room) => {
       const cell = document.createElement('div');
       cell.className = 'tt-cell';
 
+      // 1) 수업 블록(검은 칸)인지 확인
+      const block = currentBlocks.find(
+        (b) =>
+          String(b.room) === String(room) &&
+          b.start <= time &&
+          b.end > time
+      );
+
+      if (block) {
+        // ✅ 수업 시간: 검은 칸, 클릭 불가
+        cell.classList.add('tt-block');
+        cell.textContent = '수업';
+        table.appendChild(cell);
+        return;
+      }
+
+      // 2) 예약된 칸인지 확인
       const reservation = currentReservations.find((r) => {
         return (
           String(r.room) === String(room) &&
@@ -139,16 +169,14 @@ function renderTimetable() {
       });
 
       if (reservation) {
-        // 이미 예약된 칸
         cell.classList.add('tt-busy');
         cell.innerHTML = `
           <div class="tt-student">${reservation.student}</div>
           <div class="tt-range">${reservation.start} ~ ${reservation.end}</div>
         `;
 
-        // 이 칸 클릭 시: 취소 or 폼 채우기
         cell.addEventListener('click', () => {
-          // 선택된 칸 파란 표시 제거
+          // 파란 선택 제거
           if (selectedCell) {
             selectedCell.classList.remove('tt-selected');
             selectedCell = null;
@@ -168,7 +196,7 @@ function renderTimetable() {
             if (!code) return;
             cancelReservation(reservation.id, code);
           } else {
-            // 변경을 위해 폼만 채워주기
+            // 변경 편하게 하도록 폼 채우기
             roomSelect.value = String(room);
             startInput.value = reservation.start;
             endInput.value = reservation.end;
@@ -177,7 +205,7 @@ function renderTimetable() {
           }
         });
       } else {
-        // 비어있는 칸
+        // 3) 비어있는 칸 (예약 가능)
         cell.classList.add('tt-free');
         cell.textContent = '비어있음';
 
@@ -190,7 +218,6 @@ function renderTimetable() {
 
           studentInput.focus();
 
-          // 이전 선택 제거 & 현재 칸 파란색으로 표시
           if (selectedCell) {
             selectedCell.classList.remove('tt-selected');
           }
@@ -231,7 +258,7 @@ async function cancelReservation(id, manageCode) {
     messageEl.textContent = '예약이 취소되었습니다.';
     messageEl.style.color = 'green';
 
-    loadReservations();
+    loadReservationsAndBlocks();
   } catch (err) {
     console.error(err);
     messageEl.textContent = '서버 오류가 발생했습니다.';
@@ -294,7 +321,7 @@ async function submitReservation(e) {
 
     studentInput.value = '';
 
-    loadReservations();
+    loadReservationsAndBlocks();
   } catch (err) {
     console.error(err);
     messageEl.textContent = '서버 오류가 발생했습니다.';
