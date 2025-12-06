@@ -7,15 +7,14 @@ const startInput = document.getElementById('start');
 const endInput = document.getElementById('end');
 const studentInput = document.getElementById('student');
 const messageEl = document.getElementById('message');
-const listEl = document.getElementById('list');
 const timetableEl = document.getElementById('timetable');
 const form = document.getElementById('reserveForm');
 
 // 연습실 번호 (필요하면 개수 늘리면 됨)
 const ROOMS = [1, 2, 3, 4, 5];
 
-// 시간표에 표시할 시간대 (예: 13:00 ~ 22:00, 30분 간격)
-const TIME_SLOTS = generateTimeSlots('13:00', '22:00', 30);
+// ✅ 시간표에 표시할 시간대 (13:00 ~ 22:00, 1시간 간격)
+const TIME_SLOTS = generateTimeSlots('13:00', '22:00', 60);
 
 let currentReservations = [];
 
@@ -90,7 +89,6 @@ async function loadReservations() {
     currentReservations = data;
 
     renderTimetable();
-    renderList();
   } catch (err) {
     console.error(err);
     messageEl.textContent = '서버와 통신 중 오류가 발생했습니다.';
@@ -153,13 +151,13 @@ function renderTimetable() {
         cell.classList.add('tt-free');
         cell.textContent = '비어있음';
 
-        // 클릭하면 폼에 자동 입력
+        // ✅ 클릭하면 폼에 자동 입력 (1시간 단위)
         cell.addEventListener('click', () => {
           roomSelect.value = String(room);
           startInput.value = time;
 
-          // 기본으로 1시간짜리 예약 (2칸 = 30분 x 2)
-          const next = TIME_SLOTS[idx + 2] || addMinutes(time, 60);
+          // 다음 시간 슬롯(1시간 후)을 기본 끝 시간으로 사용
+          const next = TIME_SLOTS[idx + 1] || addMinutes(time, 60);
           endInput.value = next;
 
           studentInput.focus();
@@ -171,52 +169,6 @@ function renderTimetable() {
   });
 
   timetableEl.appendChild(table);
-}
-
-// 오른쪽 예약 목록 그리기
-function renderList() {
-  listEl.innerHTML = '';
-
-  if (!currentReservations || currentReservations.length === 0) {
-    listEl.textContent = '이 날짜에는 아직 예약이 없습니다.';
-    return;
-  }
-
-  const byRoom = {};
-  ROOMS.forEach((r) => (byRoom[r] = []));
-  currentReservations.forEach((r) => {
-    const room = Number(r.room);
-    if (!byRoom[room]) byRoom[room] = [];
-    byRoom[room].push(r);
-  });
-
-  Object.keys(byRoom)
-    .map(Number)
-    .sort((a, b) => a - b)
-    .forEach((room) => {
-      const list = byRoom[room];
-      const title = document.createElement('h3');
-      title.textContent = `연습실 ${room}`;
-      listEl.appendChild(title);
-
-      if (list.length === 0) {
-        const p = document.createElement('p');
-        p.textContent = '예약 없음';
-        listEl.appendChild(p);
-        return;
-      }
-
-      list.sort((a, b) => a.start.localeCompare(b.start));
-
-      const ul = document.createElement('ul');
-      list.forEach((r) => {
-        const li = document.createElement('li');
-        li.textContent = `${r.start} ~ ${r.end} — ${r.student}`;
-        ul.appendChild(li);
-      });
-
-      listEl.appendChild(ul);
-    });
 }
 
 // 예약 폼 전송
@@ -259,7 +211,7 @@ async function submitReservation(e) {
     messageEl.style.color = 'green';
     studentInput.value = '';
 
-    // 새로 예약 후 목록/시간표 다시 불러오기
+    // 새로 예약 후 시간표 다시 불러오기
     loadReservations();
   } catch (err) {
     console.error(err);
