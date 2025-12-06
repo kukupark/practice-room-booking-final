@@ -124,25 +124,22 @@ app.get('/api/admin/reservations', async (req, res) => {
   }
 
   try {
+    // 컬럼 이름을 모르면 SELECT *가 제일 안전함
     const result = await pool.query(
-      `SELECT 
-         id,
-         room,
-         student      AS student_name,
-         start_time,
-         end_time,
-         manage_code
+      `SELECT * 
        FROM reservations
        WHERE date = $1
-       ORDER BY start_time, room`,
+       ORDER BY room, id`,
       [date]
     );
+
     res.json(result.rows);
   } catch (err) {
     console.error('관리자 예약 조회 오류:', err);
     res.status(500).json({ error: '예약 조회 중 오류가 발생했습니다.' });
   }
 });
+
 
 
 // 관리자: 관리코드 없이 강제 취소
