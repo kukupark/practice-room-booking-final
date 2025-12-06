@@ -1,220 +1,149 @@
-/* 공통 설정 */
-* {
+/* ===== 기본 설정 ===== */
+*,
+*::before,
+*::after {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI',
     sans-serif;
-  background: linear-gradient(135deg, #e3f2fd, #fce4ec);
-  color: #333;
+  background: #f3f4f8;
+  color: #111827;
 }
 
-/* 페이지 전체 컨테이너 */
 .page {
-  max-width: 960px;
-  margin: 0 auto;
-  padding: 12px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
 }
 
-/* 헤더 */
+/* ===== 헤더 ===== */
 .header {
+  padding: 24px 16px 8px;
   text-align: center;
-  margin: 12px 0 16px;
 }
 
 .header-title {
   margin: 0;
-  font-size: 22px;
+  font-size: 1.5rem;
   font-weight: 700;
 }
 
 .header-sub {
   margin: 6px 0 0;
-  font-size: 13px;
-  color: #555;
+  font-size: 0.9rem;
+  color: #6b7280;
 }
 
-/* 메인 레이아웃 – 기본(모바일)은 한 줄로 세로 배치 */
+/* ===== 메인 & 카드 ===== */
 .main {
+  flex: 1;
+  padding: 0 16px 24px;
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  justify-content: center; /* 가운데 정렬 */
 }
 
-/* 카드 박스 공통 스타일 */
 .card {
-  background: #ffffffdd;
+  width: 100%;
+  max-width: 960px; /* 카드 최대 폭 */
+  margin: 0 auto;
+  background: #ffffff;
   border-radius: 16px;
-  padding: 14px 16px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.08);
-  backdrop-filter: blur(4px);
+  padding: 16px 16px 20px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
 }
 
-/* 카드 제목 */
 .card h2 {
-  margin-top: 0;
-  font-size: 16px;
-  border-left: 4px solid #42a5f5;
-  padding-left: 8px;
+  margin: 0 0 12px;
+  font-size: 1.2rem;
 }
 
-/* 날짜 선택 영역 – 모바일에서는 세로로 쌓기 */
+/* ===== 날짜 부분 ===== */
 .date-row {
   display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.date-row label {
+  display: flex;
   flex-direction: column;
-  gap: 8px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.date-row input[type='date'] {
   margin-top: 4px;
+  padding: 6px 10px;
+  font-size: 0.9rem;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
 }
 
-/* 입력 요소, 셀렉트 – 모바일에서 크게, 폭 넓게 */
-input[type="date"],
-input[type="time"],
-input[type="text"],
-select {
-  width: 100%;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid #cfd8dc;
-  font-size: 16px; /* 폰에서 확대 안 되게 16px 이상 */
-}
-
-/* 버튼 공통 – 모바일은 가로 100%로 크게 */
+/* ===== 버튼 공통 ===== */
 .btn {
-  width: 100%;
-  padding: 10px 16px;
-  border-radius: 999px;
   border: none;
+  border-radius: 999px;
+  padding: 8px 16px;
+  font-size: 0.9rem;
   cursor: pointer;
-  font-size: 16px;
   font-weight: 600;
-  transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.1s ease;
 }
 
 .btn-primary {
-  background: #42a5f5;
-  color: white;
-  box-shadow: 0 4px 10px rgba(66, 165, 245, 0.4);
+  background: #2563eb;
+  color: #ffffff;
 }
 
-.btn-primary:hover {
-  background: #1e88e5;
-  transform: translateY(-1px);
-  box-shadow: 0 6px 14px rgba(66, 165, 245, 0.55);
+.btn-primary:active {
+  transform: translateY(1px);
 }
 
-/* 폼 레이아웃 */
+/* ===== 폼 ===== */
 .form-grid {
+  margin-top: 12px;
   display: grid;
-  gap: 8px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
 }
 
 .form-row {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  font-size: 14px;
+  font-size: 0.9rem;
 }
 
-/* 메시지 */
-#message {
-  margin-top: 8px;
-  font-size: 13px;
-  min-height: 18px;
-}
-
-/* 예약 목록 */
-#list {
-  margin-top: 10px;
-}
-
-#list h3 {
+.form-row label {
   margin-bottom: 4px;
-  margin-top: 14px;
-  font-size: 15px;
 }
 
-#list h3::before {
-  content: "🎹 ";
-}
-
-#list ul {
-  list-style: none;
-  padding-left: 0;
-  margin: 4px 0 0;
-}
-
-#list li {
-  font-size: 13px;
-  margin-bottom: 4px;
+.form-row input,
+.form-row select {
   padding: 6px 10px;
-  border-radius: 12px;
-  background: #f5f7fb;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  font-size: 0.9rem;
 }
 
-/* --- 여기까지가 모바일 기준 스타일 --- */
-
-/* 화면이 넓을 때(태블릿/PC) 레이아웃 변경 */
-@media (min-width: 768px) {
-  .page {
-    margin: 24px auto;
-    padding: 16px;
-  }
-
-  .header-title {
-    font-size: 26px;
-  }
-
-  .header-sub {
-    font-size: 14px;
-  }
-
-  /* 좌우 두 칸 레이아웃 */
-  .main {
-    display: grid;
-    grid-template-columns: 1.1fr 0.9fr;
-    gap: 16px;
-  }
-
-  .date-row {
-    flex-direction: row;
-    align-items: center;
-  }
-
-  .date-row label {
-    flex: 1;
-  }
-
-  .date-row .btn {
-    width: auto; /* 데스크탑에서는 버튼이 너무 넓지 않게 */
-  }
-
-  .btn {
-    width: auto;
-    font-size: 14px;
-    padding: 8px 14px;
-  }
-
-  input[type="date"],
-  input[type="time"],
-  input[type="text"],
-  select {
-    font-size: 14px;
-    padding: 8px 10px;
-  }
+/* ===== 메시지 ===== */
+#message {
+  margin-top: 10px;
+  font-size: 0.85rem;
 }
-/* === 시간표 스타일 === */
 
+/* ===== 시간표 영역 ===== */
 .timetable-title {
   margin: 10px 0 4px;
-  font-size: 14px;
+  font-size: 0.95rem;
 }
 
 .timetable-help {
   margin: 2px 0 6px;
-  font-size: 11px;
-  color: #777;
+  font-size: 0.8rem;
+  color: #6b7280;
 }
 
 .timetable {
@@ -222,38 +151,44 @@ select {
   border-radius: 12px;
   background: #f5f7fb;
   padding: 6px;
-  overflow-x: auto;
+  overflow-x: auto; /* 작은 화면에서 좌우 스크롤 허용 */
 }
 
 /* grid: [시간] [연습실1] [연습실2] ... */
 .timetable-table {
+  width: 100%;
+  min-width: 560px; /* 너무 좁아지지 않게 */
   display: grid;
-  grid-template-columns: 64px repeat(5, minmax(80px, 1fr));
-  font-size: 11px;
+  grid-template-columns: 70px repeat(5, minmax(90px, 1fr));
+  font-size: 0.78rem;
 }
 
+/* 헤더/코너 */
 .tt-header {
   font-weight: 600;
   text-align: center;
   padding: 6px 4px;
   border-bottom: 1px solid #dde3f0;
+  background: #e5ecff;
 }
 
 .tt-corner {
-  background: #e3f2fd;
   border-right: 1px solid #dde3f0;
 }
 
+/* 왼쪽 시간 칸 */
 .tt-time {
-  font-size: 11px;
+  font-size: 0.75rem;
   padding: 6px 4px;
   border-right: 1px solid #dde3f0;
   border-bottom: 1px solid #dde3f0;
   background: #eef2fb;
+  text-align: center;
 }
 
+/* 각 셀 기본 */
 .tt-cell {
-  min-height: 32px;
+  min-height: 36px;
   padding: 4px;
   border-bottom: 1px solid #dde3f0;
   border-right: 1px solid #dde3f0;
@@ -267,7 +202,7 @@ select {
 /* 비어있는 칸 */
 .tt-free {
   background: #ffffff;
-  color: #90a4ae;
+  color: #9ca3af;
   cursor: pointer;
 }
 
@@ -281,17 +216,38 @@ select {
   color: #c62828;
 }
 
-/* 선택된 칸 하이라이트 */
-.tt-selected {
-  background: #e3f2fd;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.3);
-}
-
+/* 예약 내용 */
 .tt-student {
   font-weight: 600;
 }
 
 .tt-range {
-  font-size: 10px;
+  font-size: 0.7rem;
+}
+
+/* 선택된 칸 하이라이트 (파란 테두리) */
+.tt-selected {
+  background: #e3f2fd !important;
+  border-color: #1d4ed8;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.4);
+}
+
+/* ===== 반응형(핸드폰) ===== */
+@media (max-width: 640px) {
+  .header-title {
+    font-size: 1.3rem;
+  }
+
+  .card {
+    padding: 12px;
+  }
+
+  .timetable-table {
+    font-size: 0.7rem;
+    grid-template-columns: 60px repeat(5, minmax(70px, 1fr));
+  }
+
+  .tt-time {
+    font-size: 0.7rem;
+  }
 }
