@@ -19,6 +19,7 @@ let currentReservations = [];
 let currentBlocks = []; // ✅ 수업(검은 칸) 블록
 let selectedCell = null; // 현재 선택된 칸
 
+
 // 시간 문자열 배열 만들기: "HH:MM" → stepMinutes 단위로 증가
 function generateTimeSlots(start, end, stepMinutes) {
   const slots = [];
@@ -40,6 +41,13 @@ function generateTimeSlots(start, end, stepMinutes) {
   return slots;
 }
 
+function timeToMinutes(t) {
+  if (!t || typeof t !== 'string') return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+
 // timeStr("HH:MM")에 분 더하기
 function addMinutes(timeStr, deltaMinutes) {
   const [h, m] = timeStr.split(':').map(Number);
@@ -54,6 +62,8 @@ window.addEventListener('DOMContentLoaded', () => {
   const today = new Date().toISOString().slice(0, 10);
   dateInput.value = today;
 
+  buildTimeSelects();
+
   // 처음 로딩 시 오늘 날짜 기준 시간표
   loadReservationsAndBlocks();
 
@@ -64,6 +74,39 @@ window.addEventListener('DOMContentLoaded', () => {
 
   form.addEventListener('submit', submitReservation);
 });
+
+function buildTimeSelects() {
+  const startSelect = document.getElementById('start-time');
+  const endSelect = document.getElementById('end-time');
+  if (!startSelect || !endSelect) return;
+
+  startSelect.innerHTML = '';
+  endSelect.innerHTML = '';
+
+  // 시작 시간: 09:00 ~ 21:50 (10분 단위)
+  for (let h = 9; h <= 21; h++) {
+    for (let m = 0; m < 60; m += 10) {
+      const t = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      startSelect.appendChild(opt);
+    }
+  }
+
+  // 끝나는 시간: 09:10 ~ 22:00 (10분 단위)
+  // → 끝나는 시간이 시작 시간보다 반드시 커야 하니까 조금 넉넉하게
+  for (let h = 9; h <= 22; h++) {
+    for (let m = 0; m < 60; m += 10) {
+      const t = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+      const opt = document.createElement('option');
+      opt.value = t;
+      opt.textContent = t;
+      endSelect.appendChild(opt);
+    }
+  }
+}
+
 
 // 예약 + 수업 블록 모두 불러오기
 async function loadReservationsAndBlocks() {
@@ -270,6 +313,15 @@ async function cancelReservation(id, manageCode) {
 async function submitReservation(e) {
   e.preventDefault();
   messageEl.textContent = '';
+
+  const start = document.getElementById('start-time').value;
+const end = document.getElementById('end-time').value;
+const msg = document.getElementById('message'); // 메시지 표시 div
+
+if (end <= start) {
+  msg.textContent = '끝나는 시간은 시작 시간보다 늦어야 합니다.';
+  return;
+}
 
   const body = {
     room: roomSelect.value,
