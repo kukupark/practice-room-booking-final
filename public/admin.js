@@ -1,23 +1,11 @@
-// admin.js
+// admin.js (관리자 페이지)
 
-// 페이지 들어올 때 한 번만 관리자 코드 입력
+const ADMIN_HOURS = [9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21];
+const ADMIN_ROOMS = [1, 2, 3, 4, 5];
+
 let adminCode = null;
+let adminClassSlots = []; // { room, hour }
 
-// 시간 / 연습실 범위 (학생 페이지와 동일)
-const HOURS = [9,10,11,12,13,14,15,16,17,18,19,20,21];
-const ROOMS = [1,2,3,4,5];
-
-// 서버에서 받은 수업 칸 (room, hour)
-let classSlots = [];
-
-function timeToMinutes(t) {
-  if (!t || typeof t !== 'string') return 0;
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
-}
-
-
-// 오늘 날짜 (YYYY-MM-DD)
 function getToday() {
   const d = new Date();
   const yyyy = d.getFullYear();
@@ -26,14 +14,19 @@ function getToday() {
   return `${yyyy}-${mm}-${dd}`;
 }
 
-// (room, hour)가 수업 칸인지 확인
-function isClassSlotLocal(room, hour) {
-  return classSlots.some(
+function timeToMinutes(t) {
+  if (!t || typeof t !== 'string') return 0;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function isAdminClassSlot(room, hour) {
+  return adminClassSlots.some(
     (s) => String(s.room) === String(room) && s.hour === hour
   );
 }
 
-// 관리자용 시간표 그리드 렌더링
+// 관리자 시간표 렌더링
 function renderAdminTimetable(date, reservations) {
   const grid = document.getElementById('admin-timetable');
   if (!grid) return;
@@ -41,22 +34,19 @@ function renderAdminTimetable(date, reservations) {
   grid.innerHTML = '';
 
   // --- 헤더 행 ---
-  // 왼쪽 코너: "시간"
   const corner = document.createElement('div');
   corner.className = 'tt-header tt-corner';
   corner.textContent = '시간';
   grid.appendChild(corner);
 
-  // 연습실 1~5
-  ROOMS.forEach((room) => {
+  ADMIN_ROOMS.forEach((room) => {
     const h = document.createElement('div');
     h.className = 'tt-header';
     h.textContent = `연습실 ${room}`;
     grid.appendChild(h);
   });
 
-  // --- (room-hour) → 예약 매핑 ---
-   // (room-hour) → 예약 데이터 "배열" 매핑 (10분 단위 지원)
+  // --- (room-hour) → 예약 배열 매핑 ---
   const slotMap = {};
 
   (reservations || []).forEach((item) => {
@@ -71,12 +61,10 @@ function renderAdminTimetable(date, reservations) {
     const startMin = timeToMinutes(rawStart);
     const endMin = timeToMinutes(rawEnd);
 
-    // 이 예약이 겹치는 모든 "시간대(정시~정시+1)"에 추가
-    HOURS.forEach((hour) => {
+    ADMIN_HOURS.forEach((hour) => {
       const hourStart = hour * 60;
       const hourEnd = (hour + 1) * 60;
 
-      // [startMin, endMin) 와 [hourStart, hourEnd) 가 겹치면
       if (startMin < hourEnd && endMin > hourStart) {
         const key = `${room}-${hour}`;
         if (!slotMap[key]) slotMap[key] = [];
@@ -85,116 +73,109 @@ function renderAdminTimetable(date, reservations) {
     });
   });
 
-
   // --- 시간별 행 생성 ---
-  HOURS.forEach((hour) => {
-    // 왼쪽 시간 칸
+  ADMIN_HOURS.forEach((hour) => {
     const timeDiv = document.createElement('div');
     timeDiv.className = 'tt-time';
     timeDiv.textContent = `${String(hour).padStart(2, '0')}:00`;
     grid.appendChild(timeDiv);
 
-    // 연습실 칸들
-    ROOMS.forEach((room) => {
+    ADMIN_ROOMS.forEach((room) => {
       const cell = document.createElement('div');
       cell.className = 'tt-cell';
 
       const key = `${room}-${hour}`;
-            const items = slotMap[key] || [];
-      const isClass = isClassSlotLocal(room, hour);
+      const items = slotMap[key] || [];
+      const isClass = isAdminClassSlot(room, hour);
 
       if (isClass) {
-        // ── 수업 칸 (검은색) ──
+        // 수업 칸 (검은색)
         cell.classList.add('tt-block');
 
         if (items.length > 0) {
-          // 수업시간 + 예약까지 있는 경우 → 모든 예약 표시 + 클릭 시 취소
+          // 수업 시간에 예약까지 들어간 경우 → 예약 정보 표시 + 취소 가능
           items.forEach((item) => {
-            const rawName  = item.student || '';
-            const rawStart = item.start  || '';
-            const rawEnd   = item.end    || item['end'] || '';
+            const rawName = item.student || '';
+            const rawStart = item.start || '';
+            const rawEnd = item.end || item['end'] || '';
 
             const startText =
               typeof rawStart === 'string' ? rawStart.slice(0, 5) : '';
             const endText =
               typeof rawEnd === 'string' ? rawEnd.slice(0, 5) : '';
-            const name =
-              typeof rawName === 'string' ? rawName : '';
+            const name = typeof rawName === 'string' ? rawName : '';
 
             const line = document.createElement('div');
             line.className = 'tt-student';
             line.textContent = `${startText}~${endText} ${name || '예약됨'}`;
             cell.appendChild(line);
 
-            // 마지막 예약 기준으로 취소에 필요한 id/name/time만 저장
+            // 마지막 예약 기준으로 취소 대상 정보 저장
             cell.dataset.id = item.id;
             cell.dataset.name = name || '예약';
             cell.dataset.time = timeDiv.textContent;
           });
 
-          cell.addEventListener('click', onSlotClick);
+          cell.classList.add('tt-busy');
+          cell.addEventListener('click', onAdminSlotClick);
         } else {
-          // 순수 수업 칸
           const labelDiv = document.createElement('div');
           labelDiv.className = 'tt-student';
           labelDiv.textContent = '수업';
           cell.appendChild(labelDiv);
         }
       } else if (items.length > 0) {
-        // ── 일반 예약 칸 (빨간색) ──
+        // 예약 칸 (빨간색)
         cell.classList.add('tt-busy');
 
         items.forEach((item) => {
-          const rawName  = item.student || '';
-          const rawStart = item.start  || '';
-          const rawEnd   = item.end    || item['end'] || '';
+          const rawName = item.student || '';
+          const rawStart = item.start || '';
+          const rawEnd = item.end || item['end'] || '';
 
           const startText =
             typeof rawStart === 'string' ? rawStart.slice(0, 5) : '';
           const endText =
             typeof rawEnd === 'string' ? rawEnd.slice(0, 5) : '';
-          const name =
-            typeof rawName === 'string' ? rawName : '';
+          const name = typeof rawName === 'string' ? rawName : '';
 
           const line = document.createElement('div');
           line.className = 'tt-student';
           line.textContent = `${startText}~${endText} ${name || '예약됨'}`;
           cell.appendChild(line);
 
-          // 마지막 예약 기준으로 취소에 필요한 id/name/time만 저장
           cell.dataset.id = item.id;
           cell.dataset.name = name || '예약';
           cell.dataset.time = timeDiv.textContent;
         });
 
-        cell.addEventListener('click', onSlotClick);
+        cell.addEventListener('click', onAdminSlotClick);
       } else {
-        // ── 빈 칸 ──
+        // 빈 칸
         cell.classList.add('tt-free');
-        // 필요하면 "비어있음" 같은 글자 추가 가능
       }
-
-      } else if (item) {
-       
 
       grid.appendChild(cell);
     });
   });
 }
 
-// 날짜별 예약 + 수업블록 함께 불러오기
+// 날짜별 예약 + 블록 조회
 async function loadAdminDay() {
   const dateInput = document.getElementById('admin-date');
-  const date = dateInput.value;
   const msg = document.getElementById('admin-message');
+  if (!dateInput) return;
 
+  const date = dateInput.value;
   if (!date) return;
 
   msg.textContent = '예약을 불러오는 중입니다...';
 
   try {
     const [resRes, blocksRes] = await Promise.all([
-      fetch(`/api/admin/reservations?date=${encodeURIComponent(date)}`),
+      fetch(
+        `/api/admin/reservations?date=${encodeURIComponent(date)}`
+      ),
       fetch(`/api/blocks?date=${encodeURIComponent(date)}`),
     ]);
 
@@ -225,20 +206,22 @@ async function loadAdminDay() {
       blocks = [];
     }
 
-    // blocks → classSlots(room, hour)로 변환
-    classSlots = [];
+    // blocks → adminClassSlots(room, hour)
+    adminClassSlots = [];
     (blocks || []).forEach((b) => {
       const room = b.room;
       const start = b.start || '';
-      const end   = b.end   || '';
-
+      const end = b.end || '';
       if (!room || !start || !end) return;
 
-      const startHour = parseInt(String(start).slice(0, 2), 10);
-      const endHour   = parseInt(String(end).slice(0, 2), 10);
+      const startMin = timeToMinutes(start);
+      const endMin = timeToMinutes(end);
 
-      for (let h = startHour; h < endHour; h++) {
-        classSlots.push({ room, hour: h });
+      const firstHour = Math.floor(startMin / 60);
+      const lastHourExclusive = Math.ceil(endMin / 60);
+
+      for (let h = firstHour; h < lastHourExclusive; h++) {
+        adminClassSlots.push({ room, hour: h });
       }
     });
 
@@ -251,18 +234,18 @@ async function loadAdminDay() {
     }
   } catch (err) {
     console.error(err);
-    msg.textContent = '예약을 불러오는 중 알 수 없는 오류가 발생했습니다.';
+    msg.textContent = '예약을 불러오는 중 오류가 발생했습니다.';
   }
 }
 
-// 칸 클릭 → 예약 강제 취소
-async function onSlotClick(event) {
+// 예약 칸 클릭 → 관리자 코드로 강제 취소
+async function onAdminSlotClick(event) {
   const msg = document.getElementById('admin-message');
   const cell = event.currentTarget;
 
   const id = cell.dataset.id;
-  const name = cell.dataset.name;
-  const timeLabel = cell.dataset.time;
+  const name = cell.dataset.name || '예약';
+  const timeLabel = cell.dataset.time || '';
 
   if (!id) return;
 
@@ -304,8 +287,10 @@ window.addEventListener('DOMContentLoaded', () => {
   }
 
   const dateInput = document.getElementById('admin-date');
-  dateInput.value = getToday();
-  dateInput.addEventListener('change', loadAdminDay);
+  if (dateInput) {
+    dateInput.value = getToday();
+    dateInput.addEventListener('change', loadAdminDay);
+  }
 
   loadAdminDay();
 });
