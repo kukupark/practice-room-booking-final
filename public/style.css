@@ -395,3 +395,57 @@ body {
     font-size: 0.7rem;
   }
 }
+/* ===== 10분 단위 세부 선택 바 ===== */
+.detail-bar {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 12px;
+  background: #fffbeb;            /* 옅은 노란색 배경 */
+  border: 1px solid #fef3c7;
+  font-size: 0.78rem;
+}
+
+.detail-bar-header {
+  font-weight: 500;
+  color: #92400e;
+  margin-bottom: 6px;
+}
+
+.detail-bar-slots {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.detail-slot {
+  border-radius: 999px;
+  border: 1px solid #e5e7eb;
+  padding: 3px 8px;
+  font-size: 0.78rem;
+  background: #ffffff;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease,
+    color 0.12s ease;
+}
+
+.detail-slot:hover {
+  background: #e0f2fe;
+  border-color: #93c5fd;
+  color: #1e3a8a;
+}
+
+/* 이미 예약된 10분 블록 */
+.detail-slot-reserved {
+  background: #fee2e2;
+  border-color: #fecaca;
+  color: #b91c1c;
+  cursor: not-allowed;
+}
+
+/* 선택된 범위 */
+.detail-slot-selected {
+  background: #bfdbfe;
+  border-color: #3b82f6;
+  color: #1e3a8a;
+  font-weight: 600;
+}
