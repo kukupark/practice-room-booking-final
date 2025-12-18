@@ -146,17 +146,18 @@ body {
 }
 
 /* ===== 폼 ===== */
-/* ===== 폼 (위줄: 연습실/학생이름, 아래줄: 시작/끝시간, 버튼) ===== */
+/* ===== 폼 (1줄: 연습실/학생이름, 2줄: 시작/끝/버튼) ===== */
 .form-grid {
   margin-top: 16px;
-  display: grid;                            /* 2열 그리드 */
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  column-gap: 12px;
-  row-gap: 10px;
+  display: grid;
+  /* 3열: 연습실 / 학생이름 / 버튼 (2줄째 버튼 위치용) */
+  grid-template-columns: minmax(0, 140px) minmax(0, 1fr) auto;
+  column-gap: 8px;     /* 연습실–학생이름, 시작–끝 사이 간격 줄이기 */
+  row-gap: 8px;
   align-items: end;
 }
 
-/* 공통 폼 행 스타일 */
+/* 공통 폼 행 */
 .form-row {
   display: flex;
   flex-direction: column;
@@ -164,17 +165,17 @@ body {
   color: #374151;
 }
 
-/* 라벨 줄바꿈 방지 (학생 이름이 위로 삐져나오는 것 방지) */
+/* 라벨이 두 줄로 안 깨지게 */
 .form-row label {
   margin-bottom: 4px;
   white-space: nowrap;
 }
 
-/* 동글동글한 입력/선택 칸 유지 */
+/* 동글동글한 입력/선택 칸 */
 .form-row input,
 .form-row select {
   padding: 7px 12px;
-  border-radius: 999px;               /* pill 모양 */
+  border-radius: 999px;     /* pill 모양 */
   border: 1px solid #cbd5e1;
   font-size: 0.9rem;
   background: #ffffff;
@@ -192,38 +193,43 @@ body {
   box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.45);
 }
 
-/* 각 칸의 위치 지정
-   1) 연습실
-   2) 학생 이름
-   3) 시작 시간
-   4) 끝나는 시간
-*/
+/* 1) 연습실 (첫 번째 form-row) → 1행 1열 */
 .form-grid .form-row:nth-child(1) { /* 연습실 */
   grid-column: 1;
-}
-.form-grid .form-row:nth-child(2) { /* 학생 이름 */
-  grid-column: 2;
-}
-.form-grid .form-row:nth-child(3) { /* 시작 시간 */
-  grid-column: 1;
-}
-.form-grid .form-row:nth-child(4) { /* 끝나는 시간 */
-  grid-column: 2;
+  grid-row: 1;
 }
 
-/* 버튼은 전체 너비 한 줄 차지 (두 칸 합침) */
+/* 2) 학생 이름 (두 번째 form-row) → 1행 2~3열(조금 더 넓게) */
+.form-grid .form-row:nth-child(2) { /* 학생 이름 */
+  grid-column: 2 / 4;   /* 2열~3열까지 차지 */
+  grid-row: 1;
+}
+
+/* 3) 시작 시간 (세 번째 form-row) → 2행 1열 */
+.form-grid .form-row:nth-child(3) { /* 시작 시간 */
+  grid-column: 1;
+  grid-row: 2;
+}
+
+/* 4) 끝나는 시간 (네 번째 form-row) → 2행 2열 */
+.form-grid .form-row:nth-child(4) { /* 끝나는 시간 */
+  grid-column: 2;
+  grid-row: 2;
+}
+
+/* 5) 버튼 → 2행 3열 (시작/끝과 같은 줄로 올라오게) */
 .form-actions {
-  margin-top: 4px;
-  grid-column: 1 / -1;
+  margin-top: 0;
+  grid-column: 3;
+  grid-row: 2;
   display: flex;
-  justify-content: flex-end;
   align-items: flex-end;
 }
 
-/* ===== 모바일에서 (세로로 쌓이게) ===== */
+/* ===== 모바일(폭 좁을 때) 세로 정렬 ===== */
 @media (max-width: 640px) {
   .form-grid {
-    grid-template-columns: 1fr;       /* 한 열만 */
+    grid-template-columns: 1fr;
   }
 
   .form-grid .form-row:nth-child(1),
@@ -231,7 +237,12 @@ body {
   .form-grid .form-row:nth-child(3),
   .form-grid .form-row:nth-child(4),
   .form-actions {
-    grid-column: 1;                   /* 모두 한 줄씩 */
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .form-actions {
+    justify-content: flex-end;
   }
 
   .form-actions .btn {
@@ -239,6 +250,7 @@ body {
     text-align: center;
   }
 }
+
 
 
 /* ===== 메시지 ===== */
