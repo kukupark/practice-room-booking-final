@@ -1,8 +1,9 @@
 // server.js
-const ADMIN_CODE = process.env.ADMIN_CODE || '9999'; 
+const ADMIN_CODE = process.env.ADMIN_CODE || '9999';
+
 const express = require('express');
 const path = require('path');
-const fs = require('fs');           // 🔹 CSV 읽기용
+const fs = require('fs');
 const { Pool } = require('pg');
 
 const app = express();
@@ -52,7 +53,7 @@ function loadWeeklyLessons() {
         const weekday = parseInt((weekdayStr || '').trim(), 10);
         const room = parseInt((roomStr || '').trim(), 10);
         return {
-          weekday, // 1~7
+          weekday,
           room,
           start: (start || '').trim(),
           end: (end || '').trim(),
@@ -110,13 +111,22 @@ async function initDb() {
   console.log('DB 초기화 완료 (reservations 테이블 + manage_code 컬럼)');
 }
 
+// ------------------------------
+//  미들웨어 / 정적 파일
+// ------------------------------
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
+// 관리자 페이지 HTML
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
 });
 
+// ------------------------------
+//  관리자 API
+// ------------------------------
+
+// 날짜별 예약 조회 (관리자용)
 app.get('/api/admin/reservations', async (req, res) => {
   const { date } = req.query;
   if (!date) {
@@ -124,12 +134,13 @@ app.get('/api/admin/reservations', async (req, res) => {
   }
 
   try {
-    // 컬럼 이름을 모르면 SELECT *가 제일 안전함
     const result = await pool.query(
-      `SELECT * 
-       FROM reservations
-       WHERE date = $1
-       ORDER BY room, id`,
+      `
+      SELECT *
+      FROM reservations
+      WHERE date = $1
+      ORDER BY room, start
+      `,
       [date]
     );
 
@@ -140,9 +151,7 @@ app.get('/api/admin/reservations', async (req, res) => {
   }
 });
 
-
-
-// 관리자: 관리코드 없이 강제 취소
+// 관리자: 관리코드로 전체 취소 (페이지 입장 시 한 번만 입력받는다고 가정)
 app.delete('/api/admin/reservations/:id', async (req, res) => {
   const { adminCode } = req.body;
   const { id } = req.params;
@@ -173,8 +182,10 @@ app.delete('/api/admin/reservations/:id', async (req, res) => {
 });
 
 // ------------------------------
-//  날짜별 예약 조회
+//  학생/일반용 API
 // ------------------------------
+
+// 날짜별 예약 조회
 app.get('/api/reservations', async (req, res) => {
   const date = req.query.date;
   if (!date) {
@@ -198,9 +209,7 @@ app.get('/api/reservations', async (req, res) => {
   }
 });
 
-// ------------------------------
-//  날짜별 수업 블록(검은 칸) 조회
-// ------------------------------
+// 날짜별 수업 블록(검은 칸) 조회
 app.get('/api/blocks', (req, res) => {
   const date = req.query.date;
   if (!date) {
@@ -219,9 +228,7 @@ app.get('/api/blocks', (req, res) => {
   res.json(blocks);
 });
 
-// ------------------------------
-//  새 예약 추가
-// ------------------------------
+// 새 예약 추가
 // body: { room, date, start, end, student }
 app.post('/api/reservations', async (req, res) => {
   const { room, date, start, end, student } = req.body;
@@ -234,7 +241,7 @@ app.post('/api/reservations', async (req, res) => {
   }
 
   try {
-    // 1) 수업 블록과 겹치는지 체크 (수업 있는 시간에는 예약 금지)
+    // 1) 수업 블록과 겹치는지 체크
     const lessonBlocks = getLessonsForDate(date);
     const lessonConflict = lessonBlocks.find(
       (b) =>
@@ -279,7 +286,6 @@ app.post('/api/reservations', async (req, res) => {
     );
 
     const newRes = insertResult.rows[0];
-
     res.json(newRes);
   } catch (err) {
     console.error('예약 저장 중 오류:', err);
@@ -289,9 +295,7 @@ app.post('/api/reservations', async (req, res) => {
   }
 });
 
-// ------------------------------
-//  예약 취소 (관리코드로만)
-// ------------------------------
+// 예약 취소 (학생 측: 관리코드 필요)
 app.delete('/api/reservations/:id', async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { manageCode } = req.body || {};
@@ -337,7 +341,6 @@ app.delete('/api/reservations/:id', async (req, res) => {
 // ------------------------------
 const PORT = process.env.PORT || 3000;
 
-// DB 초기화 후, CSV 로딩까지 한 뒤 서버 시작
 initDb()
   .then(() => {
     loadWeeklyLessons();
