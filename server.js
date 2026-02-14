@@ -1,5 +1,5 @@
 // server.js
-const ADMIN_CODE = process.env.ADMIN_CODE || '9999';
+// 연세스트링아카데미 연습실 예약 시스템 (Render + PostgreSQL)
 
 const express = require('express');
 const path = require('path');
@@ -9,12 +9,43 @@ const { Pool } = require('pg');
 const app = express();
 
 // ------------------------------
-//  PostgreSQL 연결 설정
+//  환경 변수
 // ------------------------------
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.DATABASE_URL ? { rejectUnauthorized: false } : false,
-});
+const ADMIN_CODE = process.env.ADMIN_CODE || '9999';
+const DATABASE_URL = process.env.DATABASE_URL || '';
+const PORT = process.env.PORT || 3000;
+
+// ------------------------------
+//  PostgreSQL 연결 설정
+//  - Render Managed Postgres는 보통 SSL 필요
+//  - 로컬(localhost)에서는 SSL 끄기
+// ------------------------------
+function shouldUseSsl(connectionString) {
+  if (!connectionString) return false;
+  return !(
+    connectionString.includes('localhost') ||
+    connectionString.includes('127.0.0.1')
+  );
+}
+
+/** @type {Pool|null} */
+let pool = null;
+
+if (DATABASE_URL) {
+  pool = new Pool({
+    connectionString: DATABASE_URL,
+    ssl: shouldUseSsl(DATABASE_URL) ? { rejectUnauthorized: false } : false,
+  });
+} else {
+  console.warn(
+    '[WARN] DATABASE_URL이 설정되어 있지 않습니다. (Render 환경변수에 Postgres External Database URL을 넣어주세요)'
+  );
+}
+
+// DB 준비 상태
+let dbReady = false;
+let dbLastError = null;
+let dbInitAttempts = 0;
 
 // ------------------------------
 //  주간 수업 시간표 (class_schedule.csv에서 읽기)
@@ -45,7 +76,6 @@ function loadWeeklyLessons() {
 
     const lines = content.split(/\r?\n/);
 
-    // 첫 줄은 헤더(weekday,room,start,end)
     weeklyLessons = lines
       .slice(1)
       .map((line) => line.split(','))
@@ -81,17 +111,22 @@ function getLessonsForDate(dateStr) {
   const d = new Date(dateStr);
   if (Number.isNaN(d.getTime())) return [];
 
-  // JS: 0=일, 1=월, ... 6=토 → 우리가 쓰는 1~7로 변환
-  const jsDay = d.getDay(); // 0~6
-  const weekday = jsDay === 0 ? 7 : jsDay; // 1=월 ... 7=일
+  // JS: 0=일, 1=월, ... 6=토 → 1~7로 변환
+  const jsDay = d.getDay();
+  const weekday = jsDay === 0 ? 7 : jsDay;
 
   return weeklyLessons.filter((l) => l.weekday === weekday);
 }
 
 // ------------------------------
 //  DB 초기화 (테이블/컬럼 준비)
+//  - Render에서 DB 연결이 잠깐 불안정해도 서버 자체는 죽지 않도록 "재시도"로 구성
 // ------------------------------
-async function initDb() {
+async function initDbOnce() {
+  if (!pool) {
+    throw new Error('DATABASE_URL이 설정되어 있지 않아 DB에 연결할 수 없습니다.');
+  }
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS reservations (
       id SERIAL PRIMARY KEY,
@@ -107,8 +142,40 @@ async function initDb() {
     ALTER TABLE reservations
     ADD COLUMN IF NOT EXISTS manage_code TEXT;
   `);
+}
 
-  console.log('DB 초기화 완료 (reservations 테이블 + manage_code 컬럼)');
+function initDbWithRetry() {
+  const attempt = async () => {
+    dbInitAttempts += 1;
+    try {
+      await initDbOnce();
+      dbReady = true;
+      dbLastError = null;
+      console.log('DB 초기화 완료 (reservations 테이블 + manage_code 컬럼)');
+    } catch (err) {
+      dbReady = false;
+      dbLastError = err;
+      const msg = err && err.message ? err.message : String(err);
+      console.error(`[DB] 초기화 실패 (시도 ${dbInitAttempts}):`, msg);
+      // 5초 후 재시도 (무한 재시도)
+      setTimeout(attempt, 5000);
+    }
+  };
+
+  attempt();
+}
+
+function requireDb(req, res, next) {
+  if (dbReady) return next();
+  const msg =
+    dbLastError && dbLastError.message
+      ? dbLastError.message
+      : 'DB 연결이 준비되지 않았습니다.';
+  return res.status(503).json({
+    error:
+      '서버가 DB에 연결 중입니다. 잠시 후 다시 시도해 주세요. (Render 환경변수 DATABASE_URL 확인 필요)',
+    detail: msg,
+  });
 }
 
 // ------------------------------
@@ -117,9 +184,24 @@ async function initDb() {
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-// 관리자 페이지 HTML
+// 홈(학생 페이지) - static이 있어도 Render에서 라우팅이 애매할 때 대비해 명시
+app.get('/', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// 관리자 페이지
 app.get('/admin', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'admin.html'));
+});
+
+// 헬스 체크 (Render 로그/디버깅용)
+app.get('/healthz', (req, res) => {
+  res.json({
+    ok: true,
+    dbReady,
+    dbInitAttempts,
+    hasDatabaseUrl: Boolean(DATABASE_URL),
+  });
 });
 
 // ------------------------------
@@ -127,7 +209,7 @@ app.get('/admin', (req, res) => {
 // ------------------------------
 
 // 날짜별 예약 조회 (관리자용)
-app.get('/api/admin/reservations', async (req, res) => {
+app.get('/api/admin/reservations', requireDb, async (req, res) => {
   const { date } = req.query;
   if (!date) {
     return res.status(400).json({ error: 'date 파라미터가 필요합니다.' });
@@ -151,15 +233,14 @@ app.get('/api/admin/reservations', async (req, res) => {
   }
 });
 
-// 관리자: 관리코드로 전체 취소 (페이지 입장 시 한 번만 입력받는다고 가정)
-app.delete('/api/admin/reservations/:id', async (req, res) => {
-  const { adminCode } = req.body;
+// 관리자: 강제 취소
+app.delete('/api/admin/reservations/:id', requireDb, async (req, res) => {
+  const { adminCode } = req.body || {};
   const { id } = req.params;
 
   if (!adminCode) {
     return res.status(400).json({ error: '관리자 코드를 입력해 주세요.' });
   }
-
   if (adminCode !== ADMIN_CODE) {
     return res.status(403).json({ error: '관리자 코드가 올바르지 않습니다.' });
   }
@@ -186,7 +267,7 @@ app.delete('/api/admin/reservations/:id', async (req, res) => {
 // ------------------------------
 
 // 날짜별 예약 조회
-app.get('/api/reservations', async (req, res) => {
+app.get('/api/reservations', requireDb, async (req, res) => {
   const date = req.query.date;
   if (!date) {
     return res
@@ -205,11 +286,13 @@ app.get('/api/reservations', async (req, res) => {
     res.json(result.rows);
   } catch (err) {
     console.error('예약 목록 조회 중 오류:', err);
-    res.status(500).json({ error: '예약 목록을 불러오는 중 오류가 발생했습니다.' });
+    res
+      .status(500)
+      .json({ error: '예약 목록을 불러오는 중 오류가 발생했습니다.' });
   }
 });
 
-// 날짜별 수업 블록(검은 칸) 조회
+// 날짜별 수업 블록(검은 칸) 조회 (DB 불필요)
 app.get('/api/blocks', (req, res) => {
   const date = req.query.date;
   if (!date) {
@@ -230,8 +313,8 @@ app.get('/api/blocks', (req, res) => {
 
 // 새 예약 추가
 // body: { room, date, start, end, student }
-app.post('/api/reservations', async (req, res) => {
-  const { room, date, start, end, student } = req.body;
+app.post('/api/reservations', requireDb, async (req, res) => {
+  const { room, date, start, end, student } = req.body || {};
 
   if (!room || !date || !start || !end || !student) {
     return res.status(400).json({
@@ -240,13 +323,15 @@ app.post('/api/reservations', async (req, res) => {
     });
   }
 
+  if (end <= start) {
+    return res.status(400).json({ error: '끝나는 시간이 시작 시간보다 빨라요.' });
+  }
+
   try {
     // 1) 수업 블록과 겹치는지 체크
     const lessonBlocks = getLessonsForDate(date);
     const lessonConflict = lessonBlocks.find(
-      (b) =>
-        String(b.room) === String(room) &&
-        !(end <= b.start || start >= b.end)
+      (b) => String(b.room) === String(room) && !(end <= b.start || start >= b.end)
     );
 
     if (lessonConflict) {
@@ -285,18 +370,15 @@ app.post('/api/reservations', async (req, res) => {
       [room, date, start, end, student, manageCode]
     );
 
-    const newRes = insertResult.rows[0];
-    res.json(newRes);
+    res.json(insertResult.rows[0]);
   } catch (err) {
     console.error('예약 저장 중 오류:', err);
-    res
-      .status(500)
-      .json({ error: '예약을 저장하는 중 오류가 발생했습니다.' });
+    res.status(500).json({ error: '예약을 저장하는 중 오류가 발생했습니다.' });
   }
 });
 
 // 예약 취소 (학생 측: 관리코드 필요)
-app.delete('/api/reservations/:id', async (req, res) => {
+app.delete('/api/reservations/:id', requireDb, async (req, res) => {
   const id = parseInt(req.params.id, 10);
   const { manageCode } = req.body || {};
 
@@ -318,37 +400,24 @@ app.delete('/api/reservations/:id', async (req, res) => {
     }
 
     const row = result.rows[0];
-
     if (!row.manage_code || row.manage_code !== manageCode) {
-      return res
-        .status(403)
-        .json({ error: '관리코드가 일치하지 않습니다.' });
+      return res.status(403).json({ error: '관리코드가 일치하지 않습니다.' });
     }
 
     await pool.query(`DELETE FROM reservations WHERE id = $1`, [id]);
-
     res.json({ success: true });
   } catch (err) {
     console.error('예약 삭제 중 오류:', err);
-    res
-      .status(500)
-      .json({ error: '예약을 삭제하는 중 오류가 발생했습니다.' });
+    res.status(500).json({ error: '예약을 삭제하는 중 오류가 발생했습니다.' });
   }
 });
 
 // ------------------------------
 // 서버 실행
 // ------------------------------
-const PORT = process.env.PORT || 3000;
+loadWeeklyLessons();
 
-initDb()
-  .then(() => {
-    loadWeeklyLessons();
-    app.listen(PORT, () => {
-      console.log(`서버 실행 중: 포트 ${PORT}에서 서버 실행 중`);
-    });
-  })
-  .catch((err) => {
-    console.error('초기화 중 치명적 오류:', err);
-    process.exit(1);
-  });
+app.listen(PORT, () => {
+  console.log(`서버 실행 중: 포트 ${PORT}에서 서버 실행 중`);
+  initDbWithRetry();
+});
